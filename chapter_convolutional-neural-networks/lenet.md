@@ -1,14 +1,14 @@
 # Convolutional Neural Networks (LeNet)
-:label:`chapter_lenet`
+:label:`sec_lenet`
 
 We are now ready to put all of the tools together
 to deploy your first fully-functional convolutional neural network.
-In our first encounter with image data we applied a multilayer perceptron (:numref:`chapter_mlp_scratch`)
-to pictures of clothing in the Fashion-MNIST data set.
+In our first encounter with image data we applied a multilayer perceptron (:numref:`sec_mlp_scratch`)
+to pictures of clothing in the Fashion-MNIST dataset.
 Each image in Fashion-MNIST consisted of
 a two-dimensional $28 \times 28$ matrix.
 To make this data amenable to multilayer perceptrons
-which anticapte receiving inputs as one-dimensional fixed-length vectors,
+which anticipate receiving inputs as one-dimensional fixed-length vectors,
 we first flattened each image, yielding vectors of length 784,
 before processing them with a series of fully-connected layers.
 
@@ -26,10 +26,9 @@ for the purpose of recognizing handwritten digits in images—[LeNet5](http://ya
 In the 90s, their experiments with LeNet gave the first compelling evidence
 that it was possible to train convolutional neural networks
 by backpropagation.
-Their model achieved outstanding results at the time
-(only matched by Support Vector Machines at the time)
+Their model achieved outstanding results (only matched by Support Vector Machines at the time)
 and was adopted to recognize digits for processing deposits in ATM machines.
-Some ATMs still runn the code
+Some ATMs still run the code
 that Yann and his colleague Leon Bottou wrote in the 1990s!
 
 ## LeNet
@@ -37,9 +36,9 @@ that Yann and his colleague Leon Bottou wrote in the 1990s!
 In a rough sense, we can think LeNet as consisting of two parts:
 (i) a block of convolutional layers; and
 (ii) a block of fully-connected layers.
-Before getting into the weeds, let's briefly review the model in :numref:`img_lenet`.
+Before getting into the weeds, let us briefly review the model in :numref:`img_lenet`.
 
-![Data flow in LeNet 5. The input is a handwritten digit, the output a probabilitiy over 10 possible outcomes.](../img/lenet.svg)
+![Data flow in LeNet 5. The input is a handwritten digit, the output a probability over 10 possible outcomes.](../img/lenet.svg)
 :label:`img_lenet`
 
 The basic units in the convolutional block are a convolutional layer
@@ -73,10 +72,10 @@ The convolutional block emits an output with size given by
 (batch size, channel, height, width).
 Before we can pass the convolutional block's output
 to the fully-connected block, we must flatten
-each example in the mini-batch.
-In other words, we take this 4D input and tansform it into the 2D
+each example in the minibatch.
+In other words, we take this 4D input and transform it into the 2D
 input expected by fully-connected layers:
-as a reminder, the first dimension indexes the examples in the mini-batch
+as a reminder, the first dimension indexes the examples in the minibatch
 and the second gives the flat vector representation of each example.
 LeNet's fully-connected layer block has three fully-connected layers,
 with 120, 84, and 10 outputs, respectively.
@@ -86,17 +85,18 @@ to the number of possible output classes.
 
 While getting to the point
 where you truly understand
-what's going on inside LeNet
+what is going on inside LeNet
 may have taken a bit of work,
 you can see below that implementing it
 in a modern deep learning library
 is remarkably simple.
-Again, we'll rely on the Sequential class.
+Again, we will rely on the Sequential class.
 
 ```{.python .input}
 import d2l
-from mxnet import autograd, gluon, init, nd
+from mxnet import autograd, gluon, init, np, npx
 from mxnet.gluon import nn
+npx.set_np()
 
 net = nn.Sequential()
 net.add(nn.Conv2D(channels=6, kernel_size=5, padding=2, activation='sigmoid'),
@@ -118,14 +118,17 @@ by a regular dense layer, which tends to be
 significantly more convenient to train.
 Other than that, this network matches
 the historical definition of LeNet5.
-Next, we feed a single-channel example
+
+Next, let us take a look of an example.
+As shown in :numref:`img_lenet_vert`, we feed 
+a single-channel example
 of size $28 \times 28$ into the network
 and perform a forward computation layer by layer
 printing the output shape at each layer
-to make sure we understand what's happening here.
+to make sure we understand what is happening here.
 
 ```{.python .input}
-X = nd.random.uniform(shape=(1, 1, 28, 28))
+X = np.random.uniform(size=(1, 1, 28, 28))
 net.initialize()
 for layer in net:
     X = layer(X)
@@ -135,11 +138,12 @@ for layer in net:
 Note that the height and width of the representation
 at each layer throughout the convolutional block is reduced
 (compared to the previous layer).
-The convolutional layer uses a kernel
-with a height and width of 5,
-which with only $2$ pixels of padding in the first convolutional layer
-and none in the second convolutional layer
-leads to reductions in both height and width by 2 and 4 pixels, respectively.
+The first convolutional layer uses a kernel
+with a height and width of $5$, and then a $2$ pixels of padding 
+which compensates the reduction in its original shape.
+While the second convolutional layer applies the same shape of 
+$5 x 5$ kernel without padding, resulting in reductions 
+in both height and width by $4$ pixels.
 Moreover each pooling layer halves the height and width.
 However, as we go up the stack of layers,
 the number of channels increases layer-over-layer
@@ -149,21 +153,16 @@ Then, the fully-connected layer reduces dimensionality layer by layer,
 until emitting an output that matches the number of image classes.
 
 ![Compressed notation for LeNet5](../img/lenet-vert.svg)
-
+:label:`img_lenet_vert`
 
 ## Data Acquisition and Training
 
-Now that we've implemented the model,
+Now that we have implemented the model,
 we might as well run some experiments
 to see what we can accomplish with the LeNet model.
-While it might serve nostalgia
-to train LeNet on the original MNIST dataset,
-that dataset has become too easy,
-with MLPs getting over 98% accuracy,
-so it would be hard to see the benefits of convolutional networks.
-Thus we will stick with Fashion-MNIST as our dataset
-because while it has the same shape ($28\times28$ images),
-this dataset is notably more challenging.
+We will use Fashion-MNIST as our dataset.
+It is more challenging than the original MNIST dataset
+while it has the same shape ($28\times28$ images).
 
 ```{.python .input}
 batch_size = 256
@@ -178,56 +177,57 @@ to put it into action to speed up training.
 
 For evaluation, we need to make a slight modification
 to the `evaluate_accuracy` function that we described
-in :numref:`chapter_softmax_scratch`.
+in :numref:`sec_softmax_scratch`.
 Since the full dataset lives on the CPU,
 we need to copy it to the GPU before we can compute our models.
-This is accomplished via the `as_in_context` function
-described in :numref:`chapter_use_gpu`.
+This is accomplished via the `as_in_ctx` function
+described in :numref:`sec_use_gpu`.
 
 ```{.python .input}
-# Save to the d2l package
+# Saved in the d2l package for later use
 def evaluate_accuracy_gpu(net, data_iter, ctx=None):
-    if not ctx:  # Query the first device the first parameter is on.
+    if not ctx:  # Query the first device the first parameter is on
         ctx = list(net.collect_params().values())[0].list_ctx()[0]
     metric = d2l.Accumulator(2)  # num_corrected_examples, num_examples
     for X, y in data_iter:
-        X, y = X.as_in_context(ctx), y.as_in_context(ctx)
+        X, y = X.as_in_ctx(ctx), y.as_in_ctx(ctx)
         metric.add(d2l.accuracy(net(X), y), y.size)
     return metric[0]/metric[1]
 ```
 
 We also need to update our training function to deal with GPUs.
-Unlike the `train_epoch_ch3` defined in :numref:`chapter_softmax_scratch`, we now need to move each batch of data to our designated context (hopefully, the GPU)
+Unlike the `train_epoch_ch3` defined in :numref:`sec_softmax_scratch`, we now need to move each batch of data to our designated context (hopefully, the GPU)
 prior to making the forward and backward passes.
 
-The training function `train_ch5` is also very similar to `train_ch3` defined in :numref:`chapter_softmax_scratch`. Since we will deal with networks with tens of layers now, the function will only support Gluon models. We initialize the model parameters on the device indicated by `ctx`,
+The training function `train_ch6` is also very similar to `train_ch3` defined in :numref:`sec_softmax_scratch`. Since we will deal with networks with tens of layers now, the function will only support Gluon models. We initialize the model parameters on the device indicated by `ctx`,
 this time using the Xavier initializer.
 The loss function and the training algorithm
 still use the cross-entropy loss function
-and mini-batch stochastic gradient descent. Since each epoch takes tens of second to run, we visualize the training loss in a finer granularity.
+and minibatch stochastic gradient descent. Since each epoch takes tens of
+seconds to run, we visualize the training loss in a finer granularity.
 
 ```{.python .input}
-# Save to the d2l package.
-def train_ch5(net, train_iter, test_iter, num_epochs, lr, ctx=d2l.try_gpu()):
+# Saved in the d2l package for later use
+def train_ch6(net, train_iter, test_iter, num_epochs, lr, ctx=d2l.try_gpu()):
     net.initialize(force_reinit=True, ctx=ctx, init=init.Xavier())
     loss = gluon.loss.SoftmaxCrossEntropyLoss()
     trainer = gluon.Trainer(net.collect_params(),
                             'sgd', {'learning_rate': lr})
-    animator = d2l.Animator(xlabel='epoch', xlim=[0,num_epochs],
-                            legend=['train loss','train acc','test acc'])
+    animator = d2l.Animator(xlabel='epoch', xlim=[0, num_epochs],
+                            legend=['train loss', 'train acc', 'test acc'])
     timer = d2l.Timer()
     for epoch in range(num_epochs):
         metric = d2l.Accumulator(3)  # train_loss, train_acc, num_examples
         for i, (X, y) in enumerate(train_iter):
             timer.start()
             # Here is the only difference compared to train_epoch_ch3
-            X, y = X.as_in_context(ctx), y.as_in_context(ctx)
+            X, y = X.as_in_ctx(ctx), y.as_in_ctx(ctx)
             with autograd.record():
                 y_hat = net(X)
                 l = loss(y_hat, y)
             l.backward()
             trainer.step(X.shape[0])
-            metric.add(l.sum().asscalar(), d2l.accuracy(y_hat, y), X.shape[0])
+            metric.add(l.sum(), d2l.accuracy(y_hat, y), X.shape[0])
             timer.stop()
             train_loss, train_acc = metric[0]/metric[2], metric[1]/metric[2]
             if (i+1) % 50 == 0:
@@ -237,14 +237,14 @@ def train_ch5(net, train_iter, test_iter, num_epochs, lr, ctx=d2l.try_gpu()):
         animator.add(epoch+1, (None, None, test_acc))
     print('loss %.3f, train acc %.3f, test acc %.3f' % (
         train_loss, train_acc, test_acc))
-    print('%.1f exampes/sec on %s'%(metric[2]*num_epochs/timer.sum(), ctx))
+    print('%.1f examples/sec on %s' % (metric[2]*num_epochs/timer.sum(), ctx))
 ```
 
-Now let's train the model.
+Now let us train the model.
 
 ```{.python .input}
 lr, num_epochs = 0.9, 10
-train_ch5(net, train_iter, test_iter, num_epochs, lr)
+train_ch6(net, train_iter, test_iter, num_epochs, lr)
 ```
 
 ## Summary
@@ -265,9 +265,9 @@ train_ch5(net, train_iter, test_iter, num_epochs, lr)
     * Adjust the number of fully connected layers.
     * Adjust the learning rates and other training details (initialization, epochs, etc.)
 1. Try out the improved network on the original MNIST dataset.
-1. Display the activations of the first and second layer of LeNet for different inputs (e.g. sweaters, coats).
+1. Display the activations of the first and second layer of LeNet for different inputs (e.g., sweaters, coats).
 
 
-## Scan the QR Code to [Discuss](https://discuss.mxnet.io/t/2353)
+## [Discussions](https://discuss.mxnet.io/t/2353)
 
 ![](../img/qr_lenet.svg)

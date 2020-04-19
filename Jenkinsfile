@@ -9,12 +9,13 @@ stage("Build and Publish") {
 
       sh label: "Build Environment", script: """set -ex
       rm -rf ~/miniconda3/envs/${ENV_NAME}
-      conda create -n ${ENV_NAME} pip -y
+      conda create -n ${ENV_NAME} pip python=3.7 -y
       conda activate ${ENV_NAME}
-      pip install mxnet-cu100
+      pip install mxnet-cu101==1.6.0
       pip install git+https://github.com/d2l-ai/d2l-book
       python setup.py develop
       pip list
+      nvidia-smi
       """
 
       sh label: "Check Execution Output", script: """set -ex
@@ -25,6 +26,7 @@ stage("Build and Publish") {
       sh label: "Execute Notebooks", script: """set -ex
       conda activate ${ENV_NAME}
       export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}
+      export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64
       d2lbook build eval
       """
 
@@ -41,11 +43,10 @@ stage("Build and Publish") {
       sh label:"Build Package", script:"""set -ex
       conda activate ${ENV_NAME}
       # don't pack downloaded data into the pkg
-      mv _build/eval/data _build/data_tmp
-      cp -r data _build/eval
-      d2lbook build html pkg
-      rm -rf _build/eval/data
-      mv _build/data_tmp _build/eval/data
+      rm -rf _build/data_tmp
+      [ -e _build/eval/data ] && mv _build/eval/data _build/data_tmp
+      d2lbook build pkg
+      [ -e _build/data_tmp ] && mv _build/data_tmp _build/eval/data
       """
 
       if (env.BRANCH_NAME == 'master') {
@@ -54,6 +55,7 @@ stage("Build and Publish") {
         d2lbook deploy html pdf pkg
       """
       }
-	}
+    }
   }
 }
+
